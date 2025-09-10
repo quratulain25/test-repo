@@ -1,1 +1,3 @@
 helix-importer-ui
+# Temporarily ignore src/ directory for Edison Lite worker files
+src/

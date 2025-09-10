@@ -18,4 +18,31 @@ module.exports = {
       js: 'always',
     }],
   },
+  overrides: [
+    {
+      files: ['test/**/*.js'],
+      env: {
+        mocha: true,
+      },
+      rules: {
+        'no-console': 'off',
+        'no-unused-expressions': 'off',
+        'import/no-extraneous-dependencies': 'off',
+        camelcase: 'off', // Allow workflow_job from GitHub API
+        'no-redeclare': 'off', // Allow test globals
+        'no-unused-vars': 'off', // Allow mock function parameters
+      },
+    },
+    {
+      files: ['src/**/*.js'],
+      rules: {
+        'no-console': 'warn',
+        'no-use-before-define': 'off',
+        camelcase: 'off', // Allow workflow_job from GitHub API
+      },
+      env: {
+        worker: true,
+      },
+    },
+  ],
 };

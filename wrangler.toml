@@ -1,0 +1,27 @@
+name = "edison-lite"
+compatibility_date = "2024-01-01"
+
+main = "src/platform-worker.js"
+
+[env.production]
+name = "edison-lite-platform"
+
+[env.staging]
+name = "edison-lite-platform-staging"
+
+[[kv_namespaces]]
+binding = "EDISON_METADATA"
+id = "your-kv-namespace-id"
+preview_id = "your-preview-kv-namespace-id"
+
+[[env.production.kv_namespaces]]
+binding = "EDISON_METADATA"
+id = "your-production-kv-namespace-id"
+
+[[env.staging.kv_namespaces]]
+binding = "EDISON_METADATA"
+id = "your-staging-kv-namespace-id"
+
+[vars]
+FRANKLIN_ORCHESTRATOR_URL = "https://your-franklin-orchestrator-url.com"
+LEGACY_S3_FALLBACK_URL = "https://your-legacy-s3-url.com"

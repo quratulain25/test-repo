@@ -1,0 +1,61 @@
+# Edison Configuration for Edison Lite 3.0
+# This file defines the site configuration and deployment settings
+
+# Site metadata
+name: "Edison Lite Test Site"
+description: "Test site for Edison Lite 3.0 architecture"
+version: "3.0.0"
+
+# Repository information
+repository:
+  owner: "quratulain25"
+  name: "test-repo"
+  
+# Deployment settings
+deployment:
+  platform: "cloudflare-workers"
+  environment: "preview"  # preview, staging, production
+  
+# Worker configuration
+worker:
+  name: "edison-lite-site"
+  routes: []
+  
+# KV storage
+kv:
+  namespaces:
+    - name: "EDISON_METADATA"
+      binding: "EDISON_METADATA"
+      
+# Security settings
+security:
+  csp:
+    enabled: true
+    directives:
+      default-src: "'self'"
+      script-src: "'self' 'unsafe-inline' 'unsafe-eval' https://www.google-analytics.com"
+      style-src: "'self' 'unsafe-inline' https://fonts.googleapis.com"
+      font-src: "'self' https://fonts.gstatic.com"
+      img-src: "'self' data: https:"
+      connect-src: "'self' https://www.google-analytics.com"
+      frame-ancestors: "'none'"
+      
+# Franklin/Helix integration
+franklin:
+  enabled: true
+  source:
+    type: "helix"
+    url: "https://main--test-repo--quratulain25.hlx.page"
+    
+# Legacy fallback
+legacy:
+  enabled: true
+  s3_url: "https://legacy-edison-lite.s3.amazonaws.com"
+  
+# Build settings
+build:
+  node_version: "18"
+  commands:
+    test: "npm test"
+    lint: "npm run lint"
+    deploy: "wrangler deploy"

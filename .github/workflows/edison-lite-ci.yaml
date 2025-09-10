@@ -1,0 +1,129 @@
+name: Edison Lite CI/CD
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+  delete:
+    branches: ['**']
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  test:
+    name: "Automated tests"
+    runs-on: ubuntu-latest
+    if: github.event_name != 'delete'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+  deploy:
+    name: "Deploy to Cloudflare"
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name != 'delete'
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure OIDC for Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: whoami
+
+      - name: Deploy worker
+        run: |
+          # Create branch-specific worker name
+          BRANCH_NAME=${GITHUB_REF_NAME//\//-}
+          WORKER_NAME="edison-lite-${GITHUB_REPOSITORY_OWNER}-${GITHUB_REPOSITORY##*/}-${BRANCH_NAME}"
+          
+          echo "Deploying worker: $WORKER_NAME"
+          echo "Branch: $BRANCH_NAME"
+          
+          # Deploy using wrangler
+          npx wrangler deploy --name $WORKER_NAME --env $BRANCH_NAME
+
+      - name: Update KV with metadata
+        run: |
+          # Store edison.yml metadata in KV
+          BRANCH_NAME=${GITHUB_REF_NAME//\//-}
+          
+          if [ -f "edison.yml" ]; then
+            npx wrangler kv:key put "edison-metadata:${BRANCH_NAME}" --path edison.yml --namespace-id ${{ secrets.CLOUDFLARE_KV_NAMESPACE_ID }}
+          fi
+
+  cleanup:
+    name: "Delete assets"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'delete'
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure OIDC for Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: whoami
+
+      - name: Delete worker and KV data
+        run: |
+          # Extract branch name from the delete event
+          BRANCH_NAME=${GITHUB_EVENT_REF##refs/heads/}
+          BRANCH_NAME=${BRANCH_NAME//\//-}
+          WORKER_NAME="edison-lite-${GITHUB_REPOSITORY_OWNER}-${GITHUB_REPOSITORY##*/}-${BRANCH_NAME}"
+          
+          echo "Cleaning up worker: $WORKER_NAME"
+          echo "Branch: $BRANCH_NAME"
+          
+          # Delete worker
+          npx wrangler delete $WORKER_NAME --force || echo "Worker $WORKER_NAME not found or already deleted"
+          
+          # Delete KV metadata
+          npx wrangler kv:key delete "edison-metadata:${BRANCH_NAME}" --namespace-id ${{ secrets.CLOUDFLARE_KV_NAMESPACE_ID }} || echo "KV key not found"
